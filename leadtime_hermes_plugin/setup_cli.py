@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
+import ipaddress
 
 import requests
 import yaml
@@ -17,7 +18,8 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Configure the Leadtime Hermes plugin.")
     parser.add_argument("--leadtime-base-url", required=True, help="Leadtime app/API URL, e.g. https://leadtime.app/api")
     parser.add_argument("--claim", help="One-time Leadtime setup code")
-    parser.add_argument("--gateway-public-url", help="Public connector URL reachable by Leadtime")
+    parser.add_argument("--connector-public-url", help="Public connector URL reachable by Leadtime")
+    parser.add_argument("--gateway-public-url", help="Backward-compatible alias for --connector-public-url")
     parser.add_argument("--agent-id", default="default", help="Hermes agent/profile id label for this bot")
     parser.add_argument("--mode", choices=["basic", "full"], default="basic")
     parser.add_argument("--webhook-path", default="/leadtime/webhook")
@@ -37,13 +39,14 @@ def main() -> None:
     webhook_path = normalize_path(args.webhook_path)
 
     if args.claim:
-        if not args.gateway_public_url:
-            raise SystemExit("--gateway-public-url is required when claiming a setup code")
-        validate_gateway_public_url(args.gateway_public_url, leadtime_base_url)
+        connector_public_url = args.connector_public_url or args.gateway_public_url
+        if not connector_public_url:
+            raise SystemExit(missing_connector_url_message())
+        validate_gateway_public_url(connector_public_url, leadtime_base_url)
         setup = claim_setup_token(
             leadtime_base_url=leadtime_base_url,
             setup_token=args.claim,
-            gateway_public_url=args.gateway_public_url,
+            gateway_public_url=connector_public_url,
             agent_id=args.agent_id,
         )
         bot = {
@@ -117,8 +120,9 @@ def main() -> None:
     print(f"   API_SERVER_ENABLED=true API_SERVER_KEY={args.hermes_api_key} hermes gateway")
     print("3. Start the Leadtime connector:")
     print("   leadtime-hermes-connector")
-    if args.gateway_public_url:
-        print(f"4. Leadtime has saved this bot webhook URL: {args.gateway_public_url.rstrip('/')}{webhook_path}")
+    connector_public_url = args.connector_public_url or args.gateway_public_url
+    if connector_public_url:
+        print(f"4. Leadtime has saved this bot webhook URL: {connector_public_url.rstrip('/')}{webhook_path}")
     else:
         print(f"4. In Leadtime, set this bot webhook URL: <your-hermes-public-url>{webhook_path}")
 
@@ -172,9 +176,46 @@ def validate_gateway_public_url(gateway_public_url: str, leadtime_base_url: str)
         raise SystemExit("Gateway public URL must be an absolute http(s) URL.")
     leadtime_host = urlparse(leadtime_base_url).hostname or ""
     host = parsed.hostname or ""
-    local_hosts = {"localhost", "127.0.0.1", "::1", "host.docker.internal"}
-    if host in local_hosts and leadtime_host not in local_hosts:
-        raise SystemExit("A local Hermes connector URL can only be used with local Leadtime.")
+    if is_private_or_local_host(host) and not is_private_or_local_host(leadtime_host):
+        raise SystemExit(
+            "The Hermes connector URL is local/private, so Leadtime Cloud cannot deliver webhooks to it.\n\n"
+            + "\n".join(public_connector_help())
+        )
+    if parsed.scheme != "https" and not is_private_or_local_host(leadtime_host):
+        raise SystemExit(
+            "The Hermes connector URL must use HTTPS for Leadtime Cloud webhooks.\n\n"
+            + "\n".join(public_connector_help())
+        )
+
+
+def is_private_or_local_host(host: str) -> bool:
+    host = (host or "").lower()
+    if host in {"localhost", "127.0.0.1", "::1", "host.docker.internal"}:
+        return True
+    if host.endswith((".local", ".internal", ".lan", ".ts.net")):
+        return True
+    try:
+        return ipaddress.ip_address(host).is_private or ipaddress.ip_address(host).is_loopback
+    except ValueError:
+        return False
+
+
+def missing_connector_url_message() -> str:
+    return (
+        "--connector-public-url is required when claiming a setup code.\n"
+        "This should be the public HTTPS URL for leadtime-hermes-connector, not the private Hermes API server.\n\n"
+        + "\n".join(public_connector_help())
+    )
+
+
+def public_connector_help() -> list[str]:
+    return [
+        "Options:",
+        "- Tailscale Funnel: expose the connector port, for example `tailscale funnel 9338` on the Hermes machine.",
+        "- Cloudflare Tunnel: create a named tunnel to `http://127.0.0.1:9338` and use its HTTPS hostname.",
+        "- Reverse proxy: expose `http://127.0.0.1:9338` through nginx/Caddy/Traefik with HTTPS.",
+        "- Local Leadtime development can use localhost URLs; Leadtime Cloud cannot.",
+    ]
 
 
 def required(body: dict[str, Any], key: str) -> str:

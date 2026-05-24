@@ -34,7 +34,7 @@ Generate a setup code in Leadtime from a bot settings page, then run on the Herm
 leadtime-hermes-setup \
   --leadtime-base-url https://leadtime.app/api \
   --claim lt_conn_... \
-  --gateway-public-url https://your-hermes-connector.example.com \
+  --connector-public-url https://your-hermes-connector.example.com \
   --agent-id default \
   --mode basic
 ```
@@ -53,6 +53,8 @@ Leadtime should send webhooks to:
 ```text
 https://your-hermes-connector.example.com/leadtime/webhook
 ```
+
+Expose only `leadtime-hermes-connector` publicly. Keep the Hermes API server private on the machine or private network. If the connector URL is localhost, LAN, or Tailscale-only while using Leadtime Cloud, setup stops before claiming the code and prints options such as Tailscale Funnel, a named Cloudflare Tunnel, or an HTTPS reverse proxy.
 
 ## Modes
 
