@@ -1,0 +1,14 @@
+manifest_version: 1
+name: leadtime
+version: "0.1.0"
+description: Leadtime task-session tools for Hermes Agent.
+provides_tools:
+  - leadtime_get_session_context
+  - leadtime_read_task
+  - leadtime_add_task_comment
+  - leadtime_list_task_statuses
+  - leadtime_update_task_status
+  - leadtime_list_actions
+  - leadtime_action_details
+  - leadtime_execute_action
+requires_env: []

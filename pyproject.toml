@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "leadtime-hermes-plugin"
+version = "0.1.0"
+description = "Connect Leadtime self-hosted agent sessions to Hermes Agent."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "Leadtime" }]
+dependencies = [
+  "requests>=2.33.0,<3",
+  "pyyaml>=6.0.2,<7",
+]
+
+[project.scripts]
+leadtime-hermes-setup = "leadtime_hermes_plugin.setup_cli:main"
+leadtime-hermes-connector = "leadtime_hermes_plugin.server:main"
+
+[project.entry-points."hermes_agent.plugins"]
+leadtime = "leadtime_hermes_plugin"
+
+[tool.setuptools.packages.find]
+include = ["leadtime_hermes_plugin"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
