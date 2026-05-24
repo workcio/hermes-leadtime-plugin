@@ -5,7 +5,7 @@ Connect Leadtime self-hosted agent sessions to a customer-owned Hermes Agent.
 This repository has two pieces:
 
 - A Hermes plugin that registers Leadtime tools inside Hermes.
-- A connector server that receives signed Leadtime session webhooks, starts Hermes API Server runs, streams run events back into Leadtime, and marks sessions done or failed.
+- A connector listener owned by the Hermes gateway lifecycle. It receives signed Leadtime session webhooks on its own port, starts Hermes API Server runs, streams run events back into Leadtime, and marks sessions done or failed.
 
 ## Install
 
@@ -41,11 +41,10 @@ leadtime-hermes-setup \
 
 The setup command claims the one-time code, enables Leadtime task sessions for the bot, creates a bot PAT, writes `~/.hermes/leadtime/config.json`, and updates Hermes config so the `leadtime` plugin is enabled.
 
-Start Hermes API Server and the connector:
+Restart Hermes Gateway:
 
 ```bash
 API_SERVER_ENABLED=true API_SERVER_KEY=local-dev hermes gateway
-leadtime-hermes-connector
 ```
 
 Leadtime should send webhooks to:
@@ -54,7 +53,7 @@ Leadtime should send webhooks to:
 https://your-hermes-connector.example.com/leadtime/webhook
 ```
 
-Expose only `leadtime-hermes-connector` publicly. Keep the Hermes API server private on the machine or private network. If the connector URL is localhost, LAN, or Tailscale-only while using Leadtime Cloud, setup stops before claiming the code and prints options such as Tailscale Funnel, a named Cloudflare Tunnel, or an HTTPS reverse proxy.
+Expose only the Leadtime connector port publicly. The connector starts and stops with Hermes Gateway, while the Hermes API server stays private on the machine or private network. If the connector URL is localhost, LAN, or Tailscale-only while using Leadtime Cloud, setup stops before claiming the code and prints options such as Tailscale Funnel, a named Cloudflare Tunnel, or an HTTPS reverse proxy.
 
 ## Modes
 

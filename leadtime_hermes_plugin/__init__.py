@@ -16,6 +16,7 @@ def register(ctx):
         handler=_get_session_context,
         description="Read Leadtime task-session context.",
     )
+
     ctx.register_tool(
         name="leadtime_read_task",
         toolset="leadtime",

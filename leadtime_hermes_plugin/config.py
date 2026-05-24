@@ -23,6 +23,8 @@ class BotConfig:
 class LeadtimeConfig:
     leadtime_base_url: str
     webhook_path: str
+    connector_host: str
+    connector_port: int
     hermes_api_base_url: str
     hermes_api_key: str
     runner_timeout_seconds: int
@@ -100,11 +102,24 @@ def parse_config(raw: dict[str, Any]) -> LeadtimeConfig:
     return LeadtimeConfig(
         leadtime_base_url=leadtime_base_url,
         webhook_path=normalize_path(raw.get("webhookPath")),
+        connector_host=str((raw.get("connector") or {}).get("host") or "0.0.0.0")
+        if isinstance(raw.get("connector"), dict)
+        else "0.0.0.0",
+        connector_port=_connector_port(raw.get("connector")),
         hermes_api_base_url=normalize_base_url(str(raw.get("hermesApiBaseUrl") or "http://127.0.0.1:8642")),
         hermes_api_key=str(raw.get("hermesApiKey") or os.environ.get("API_SERVER_KEY") or ""),
         runner_timeout_seconds=timeout,
         bots=bots,
     )
+
+
+def _connector_port(raw_connector: Any) -> int:
+    if not isinstance(raw_connector, dict):
+        return 9338
+    try:
+        return max(1, min(65535, int(raw_connector.get("port") or 9338)))
+    except (TypeError, ValueError):
+        return 9338
 
 
 def config_to_json(config: dict[str, Any]) -> str:

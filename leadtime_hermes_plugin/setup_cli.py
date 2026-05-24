@@ -82,6 +82,7 @@ def main() -> None:
         {
             "leadtimeBaseUrl": leadtime_base_url,
             "webhookPath": webhook_path,
+            "connector": {"host": "0.0.0.0", "port": 9338},
             "hermesApiBaseUrl": normalize_base_url(args.hermes_api_base_url),
             "hermesApiKey": args.hermes_api_key,
             "runner": {"timeoutSeconds": 900},
@@ -109,17 +110,18 @@ def main() -> None:
     hermes_config_path = Path(args.hermes_config)
     hermes_config_path.parent.mkdir(parents=True, exist_ok=True)
     hermes_config_path.write_text(yaml.safe_dump(hermes_config, sort_keys=False), "utf-8")
+    write_gateway_hook(hermes_config_path.parent, config_path)
 
     print(f"Updated {config_path}")
     print(f"Updated {hermes_config_path}")
+    print(f"Updated {hermes_config_path.parent / 'hooks' / 'leadtime-connector'}")
     print("")
     print("Next steps:")
     print("1. Install/enable the Hermes plugin if needed:")
     print("   hermes plugins install workcio/hermes-leadtime-plugin --enable")
-    print("2. Start Hermes API server:")
+    print("2. Restart Hermes gateway:")
     print(f"   API_SERVER_ENABLED=true API_SERVER_KEY={args.hermes_api_key} hermes gateway")
-    print("3. Start the Leadtime connector:")
-    print("   leadtime-hermes-connector")
+    print("3. The Leadtime connector listener starts with the Hermes gateway.")
     connector_public_url = args.connector_public_url or args.gateway_public_url
     if connector_public_url:
         print(f"4. Leadtime has saved this bot webhook URL: {connector_public_url.rstrip('/')}{webhook_path}")
@@ -152,6 +154,7 @@ def merge_config(existing: dict[str, Any], setup: dict[str, Any]) -> dict[str, A
     merged = dict(existing)
     merged["leadtimeBaseUrl"] = setup["leadtimeBaseUrl"]
     merged["webhookPath"] = setup["webhookPath"]
+    merged["connector"] = merged.get("connector") or setup.get("connector") or {"host": "0.0.0.0", "port": 9338}
     merged["hermesApiBaseUrl"] = setup["hermesApiBaseUrl"]
     merged["hermesApiKey"] = setup["hermesApiKey"]
     merged["runner"] = {**(merged.get("runner") or {}), **setup["runner"]}
@@ -159,6 +162,55 @@ def merge_config(existing: dict[str, Any], setup: dict[str, Any]) -> dict[str, A
     bots.append(setup["bot"])
     merged["bots"] = bots
     return merged
+
+
+def write_gateway_hook(hermes_home_dir: Path, config_path: Path) -> None:
+    hook_dir = hermes_home_dir / "hooks" / "leadtime-connector"
+    hook_dir.mkdir(parents=True, exist_ok=True)
+    hook_dir.joinpath("HOOK.yaml").write_text(
+        yaml.safe_dump(
+            {
+                "name": "leadtime-connector",
+                "description": "Start the Leadtime connector listener with Hermes Gateway.",
+                "events": ["gateway:startup"],
+            },
+            sort_keys=False,
+        ),
+        "utf-8",
+    )
+    hook_dir.joinpath("handler.py").write_text(
+        "\n".join(
+            [
+                "from __future__ import annotations",
+                "",
+                "import logging",
+                "import threading",
+                "",
+                "from leadtime_hermes_plugin.config import load_config",
+                "from leadtime_hermes_plugin.server import start_connector_server",
+                "",
+                "logger = logging.getLogger('leadtime_hermes_plugin.hook')",
+                "_server = None",
+                "_thread = None",
+                "",
+                "async def handle(event_type, context):",
+                "    global _server, _thread",
+                "    if _server is not None:",
+                "        return",
+                f"    config_path = {str(config_path)!r}",
+                "    config = load_config(config_path)",
+                "    try:",
+                "        _server = start_connector_server(config.connector_host, config.connector_port, config_path)",
+                "    except OSError as exc:",
+                "        logger.warning('Leadtime Hermes connector could not start on %s:%s: %s', config.connector_host, config.connector_port, exc)",
+                "        return",
+                "    _thread = threading.Thread(target=_server.serve_forever, daemon=True)",
+                "    _thread.start()",
+                "",
+            ]
+        ),
+        "utf-8",
+    )
 
 
 def normalize_leadtime_api_base_url(value: str) -> str:
@@ -203,7 +255,7 @@ def is_private_or_local_host(host: str) -> bool:
 def missing_connector_url_message() -> str:
     return (
         "--connector-public-url is required when claiming a setup code.\n"
-        "This should be the public HTTPS URL for leadtime-hermes-connector, not the private Hermes API server.\n\n"
+        "This should be the public HTTPS URL for the Leadtime Hermes connector port, not the private Hermes API server.\n\n"
         + "\n".join(public_connector_help())
     )
 

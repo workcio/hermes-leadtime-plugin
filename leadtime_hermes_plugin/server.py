@@ -217,17 +217,25 @@ def build_agent_message(config: LeadtimeConfig, bot: BotConfig, payload: dict[st
     return "\n".join(lines)
 
 
+def start_connector_server(host: str, port: int, config_path: str | None = None) -> ConnectorServer:
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+    server = ConnectorServer((host, port), Handler, config_path)
+    logger.info("Leadtime Hermes connector listening on http://%s:%s/leadtime/webhook", host, port)
+    return server
+
+
+def run_connector_server(host: str, port: int, config_path: str | None = None) -> None:
+    server = start_connector_server(host, port, config_path)
+    server.serve_forever()
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Run the Leadtime Hermes connector webhook server.")
     parser.add_argument("--host", default="0.0.0.0")
     parser.add_argument("--port", type=int, default=9338)
     parser.add_argument("--config")
     args = parser.parse_args()
-
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
-    server = ConnectorServer((args.host, args.port), Handler, args.config)
-    logger.info("Leadtime Hermes connector listening on http://%s:%s/leadtime/webhook", args.host, args.port)
-    server.serve_forever()
+    run_connector_server(args.host, args.port, args.config)
 
 
 if __name__ == "__main__":

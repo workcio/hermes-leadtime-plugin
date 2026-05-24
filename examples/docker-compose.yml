@@ -34,9 +34,7 @@ services:
             api_server:
               enabled: true
         EOF
-        hermes gateway &
-        until curl -fsS http://127.0.0.1:8642/health >/dev/null; do sleep 1; done
-        leadtime-hermes-connector --host 0.0.0.0 --port 9338
+        hermes gateway
     ports:
       - "18642:8642"
       - "19338:9338"
