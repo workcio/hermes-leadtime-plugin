@@ -19,7 +19,7 @@ def test_merge_config_replaces_existing_bot():
             "webhookPath": "/leadtime/webhook",
             "hermesApiBaseUrl": "http://127.0.0.1:8642",
             "hermesApiKey": "key",
-            "runner": {"timeoutSeconds": 900},
+            "runner": {"timeoutSeconds": 172800},
             "bot": {"botUserId": "bot-1", "name": "New"},
         },
     )

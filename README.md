@@ -11,8 +11,19 @@ This repository has two pieces:
 
 ```bash
 hermes plugins install workcio/hermes-leadtime-plugin --enable
-pipx inject hermes-agent leadtime-hermes-plugin
+pipx inject hermes-agent 'leadtime-hermes-plugin @ git+https://github.com/workcio/hermes-leadtime-plugin.git'
 ```
+
+## Update
+
+Update both the Hermes directory plugin and its Python installation, then restart the gateway:
+
+```bash
+hermes plugins update leadtime
+pipx runpip hermes-agent install --upgrade 'leadtime-hermes-plugin @ git+https://github.com/workcio/hermes-leadtime-plugin.git'
+```
+
+The existing Leadtime configuration and credentials are preserved; no new setup code is required.
 
 For local development from this checkout:
 
