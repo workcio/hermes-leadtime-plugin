@@ -85,7 +85,7 @@ def main() -> None:
             "connector": {"host": "0.0.0.0", "port": 9338},
             "hermesApiBaseUrl": normalize_base_url(args.hermes_api_base_url),
             "hermesApiKey": args.hermes_api_key,
-            "runner": {"timeoutSeconds": 900},
+            "runner": {"timeoutSeconds": 172800},
             "bot": bot,
         },
     )

@@ -7,6 +7,9 @@ from pathlib import Path
 from typing import Any
 
 
+MIN_RUNNER_TIMEOUT_SECONDS = 48 * 60 * 60
+
+
 @dataclass(frozen=True)
 class BotConfig:
     name: str
@@ -93,11 +96,11 @@ def parse_config(raw: dict[str, Any]) -> LeadtimeConfig:
         raise ValueError("At least one bot must be configured")
 
     runner = raw.get("runner") if isinstance(raw.get("runner"), dict) else {}
-    timeout = runner.get("timeoutSeconds", 900)
+    timeout = runner.get("timeoutSeconds", MIN_RUNNER_TIMEOUT_SECONDS)
     try:
-        timeout = max(30, int(timeout))
+        timeout = max(MIN_RUNNER_TIMEOUT_SECONDS, int(timeout))
     except (TypeError, ValueError):
-        timeout = 900
+        timeout = MIN_RUNNER_TIMEOUT_SECONDS
 
     return LeadtimeConfig(
         leadtime_base_url=leadtime_base_url,
